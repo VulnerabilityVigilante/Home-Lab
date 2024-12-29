@@ -28,6 +28,15 @@ This repository contains scripts designed for automating tasks within a Home-Lab
   ```bash
   ./Files-Unique.sh ParentDirectory
 
+ #### `block_shorts.sh`
+- **Purpose:**  
+  Blocks Instagram and Tiktok DNS traffic from midnight to 6am.
+- **Features:**
+  - Easily scalable for more host dictionaries.
+- **Usage:**
+  ```bash
+  ./block_shorts.sh
+
 ## Suggested Crontab Setup:
 #check for duplicates at 4am daily
 
@@ -37,3 +46,8 @@ This repository contains scripts designed for automating tasks within a Home-Lab
 #condense into folder at 6am daily
 
 0 6 * * * /bin/bash /path/to/Files-Condense.sh /path/to/source/directory /path/to/condensed/directory
+
+
+#block shortform content from 12-6am
+
+0 * * * * /bin/bash /path/to/block_shorts.sh
