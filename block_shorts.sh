@@ -167,12 +167,16 @@ FACEBOOK_DOMAINS=(
 # Combine all domain lists
 BLOCKED_DOMAINS=( "${TIKTOK_DOMAINS[@]}" "${INSTAGRAM_DOMAINS[@]}" "${FACEBOOK_DOMAINS[@]}" )
 
-# Get the current hour (24-hour format)
+# Get the current hour (24-hour format; e.g., "00" for midnight, "06" for 6 AM)
 CURRENT_HOUR=$(date +%H)
 
-# Define blocking hours (e.g., midnight to 6 AM)
-START_BLOCK=0
-END_BLOCK=6
+# Only perform an update when a state change is needed:
+#   - At midnight ("00") block the domains.
+#   - At 6 AM ("06") unblock the domains.
+if [ "$CURRENT_HOUR" != "00" ] && [ "$CURRENT_HOUR" != "06" ]; then
+    echo "No state change needed at hour $CURRENT_HOUR."
+    exit 0
+fi
 
 # Create a temporary file for batch processing
 TEMP_FILE=$(mktemp)
@@ -182,16 +186,16 @@ for domain in "${BLOCKED_DOMAINS[@]}"; do
     echo "$domain" >> "$TEMP_FILE"
 done
 
-# Remove duplicate entries (optional, but recommended)
+# Remove duplicate entries (optional but recommended)
 sort -u "$TEMP_FILE" -o "$TEMP_FILE"
 
-if [ "$CURRENT_HOUR" -ge "$START_BLOCK" ] && [ "$CURRENT_HOUR" -lt "$END_BLOCK" ]; then
+if [ "$CURRENT_HOUR" == "00" ]; then
     echo "Blocking domains..."
-    # Batch block all domains from the temporary file using xargs.
+    # At midnight, add (block) the domains.
     cat "$TEMP_FILE" | xargs pihole -b -q
-else
+elif [ "$CURRENT_HOUR" == "06" ]; then
     echo "Unblocking domains..."
-    # Batch unblock all domains from the temporary file using xargs.
+    # At 6 AM, remove (unblock) the domains.
     cat "$TEMP_FILE" | xargs pihole -b -d
 fi
 
