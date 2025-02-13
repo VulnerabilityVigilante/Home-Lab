@@ -71,7 +71,6 @@ TIKTOK_DOMAINS=(
     "akamai.net"
     "isnssdk.com"
     "www.tiktok.com"
-
 )
 
 # Define Instagram domains
@@ -150,7 +149,6 @@ INSTAGRAM_DOMAINS=(
     "white.ish.instagram.com"
     "www.instagram.com"
     "cdn.instagram.com"
-
 )
 
 # Define Facebook domains
@@ -164,27 +162,41 @@ FACEBOOK_DOMAINS=(
     "graph.facebook.com"
     "star.c10r.facebook.com"
     "star.fallback.c10r.facebook.com"
-
 )
 
 # Combine all domain lists
-BLOCKED_DOMAINS=("${TIKTOK_DOMAINS[@]}" "${INSTAGRAM_DOMAINS[@]}" "${FACEBOOK_DOMAINS[@]}")
+BLOCKED_DOMAINS=( "${TIKTOK_DOMAINS[@]}" "${INSTAGRAM_DOMAINS[@]}" "${FACEBOOK_DOMAINS[@]}" )
 
-# Get the current hour
+# Get the current hour (24-hour format)
 CURRENT_HOUR=$(date +%H)
 
-# Define blocking hours (e.g., 0 to 6 AM)
+# Define blocking hours (e.g., midnight to 6 AM)
 START_BLOCK=0
 END_BLOCK=6
 
+# Create a temporary file for batch processing
+TEMP_FILE=$(mktemp)
+
+# Write each domain to the temporary file
+for domain in "${BLOCKED_DOMAINS[@]}"; do
+    echo "$domain" >> "$TEMP_FILE"
+done
+
+# Remove duplicate entries (optional, but recommended)
+sort -u "$TEMP_FILE" -o "$TEMP_FILE"
+
 if [ "$CURRENT_HOUR" -ge "$START_BLOCK" ] && [ "$CURRENT_HOUR" -lt "$END_BLOCK" ]; then
-    # Block domains
-    for domain in "${BLOCKED_DOMAINS[@]}"; do
-        pihole -b -q "$domain"
-    done
+    echo "Blocking domains..."
+    # Batch block all domains from the temporary file using xargs.
+    cat "$TEMP_FILE" | xargs pihole -b -q
 else
-    # Unblock domains
-    for domain in "${BLOCKED_DOMAINS[@]}"; do
-        pihole -b -d "$domain"
-    done
+    echo "Unblocking domains..."
+    # Batch unblock all domains from the temporary file using xargs.
+    cat "$TEMP_FILE" | xargs pihole -b -d
 fi
+
+# Update gravity only once after batch processing
+pihole -g
+
+# Clean up by removing the temporary file
+rm -f "$TEMP_FILE"
