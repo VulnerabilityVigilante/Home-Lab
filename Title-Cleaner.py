@@ -1,45 +1,55 @@
-#!/usr/bin/env python3
 import os
 import re
 import sys
 
 def sanitize_filenames(directory):
-    # Compile regex to search for SxxExx (case-insensitive)
-    pattern = re.compile(r'(S\d{2}E\d{2})', re.IGNORECASE)
+    patterns = [
+        re.compile(r"S(\d{2})\s*[xX×]\s*E(\d{2})", re.IGNORECASE),
+        re.compile(r"EP-(\d{2})\s+.*?S(\d{1,2})", re.IGNORECASE),
+        re.compile(r"S(\d{1,2})_Ep_(\d{2})", re.IGNORECASE),  # Matches format like S3_Ep_06
+        re.compile(r"S(\d{1,2})\s*Ep[-_ ](\d{2})", re.IGNORECASE),  # Matches format like S3 Ep-01
+        re.compile(r"S(\d{2})E(\d{2})", re.IGNORECASE)  # Matches format like S04E14
+    ]
     
-    # Check if the provided directory exists
-    if not os.path.isdir(directory):
-        print(f"Error: {directory} is not a valid directory.")
-        return
-    
-    # Iterate over all files in the directory
     for filename in os.listdir(directory):
-        old_path = os.path.join(directory, filename)
-        # Skip if it's not a file
-        if not os.path.isfile(old_path):
-            continue
-        
-        # Search for the SxxExx pattern in the file name
-        match = pattern.search(filename)
-        if match:
-            episode_code = match.group(1).upper()  # Convert to uppercase (e.g., S01E01)
-            # Preserve the original file extension
-            _, ext = os.path.splitext(filename)
-            new_filename = episode_code + ext
-            new_path = os.path.join(directory, new_filename)
+        try:
+            match = None
+            for pattern in patterns:
+                match = pattern.search(filename)
+                if match:
+                    break
             
-            try:
-                os.rename(old_path, new_path)
-                print(f"Renamed: {filename} -> {new_filename}")
-            except Exception as e:
-                print(f"Failed to rename {filename}: {e}")
-        else:
-            print(f"Pattern not found in: {filename}")
+            if match:
+                season = match.group(1).zfill(2)
+                episode = match.group(2).zfill(2)
+                
+                base, ext = os.path.splitext(filename)
+                while '.' in base:
+                    base, ext = os.path.splitext(base)
+                
+                new_name = f"S{season}E{episode}{ext}"
+                
+                old_path = os.path.join(directory, filename)
+                new_path = os.path.join(directory, new_name)
+                
+                if old_path != new_path:
+                    os.rename(old_path, new_path)
+                    print(f"Renamed: {filename} -> {new_name}")
+                else:
+                    print(f"Skipped (already formatted): {filename}")
+            else:
+                print(f"Skipped (no match): {filename}")
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python sanitize_filenames.py <directory>")
         sys.exit(1)
     
-    input_directory = sys.argv[1]
-    sanitize_filenames(input_directory)
+    directory = sys.argv[1]
+    if not os.path.isdir(directory):
+        print("Error: Directory not found.")
+        sys.exit(1)
+    
+    sanitize_filenames(directory)
