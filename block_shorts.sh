@@ -121,6 +121,7 @@ INSTAGRAM_DOMAINS=(
     "telegraph-ash.instagram.com"
     "white.ish.instagram.com"
     "cdn.instagram.com"
+    "gateway.instagram.com"
 )
 
 # Define Facebook domains
@@ -134,6 +135,10 @@ FACEBOOK_DOMAINS=(
     "graph.facebook.com"
     "star.c10r.facebook.com"
     "star.fallback.c10r.facebook.com"
+    "web.facebook.com"
+    "edge-mqtt.facebook.com"
+    "gateway.facebook.com"
+    "chat-e2ee-ig-p42.c10r.facebook.com"
 )
 
 # Combine all domains into one array
