@@ -122,6 +122,7 @@ INSTAGRAM_DOMAINS=(
     "white.ish.instagram.com"
     "cdn.instagram.com"
     "gateway.instagram.com"
+    "instagram.c10r.instagram.com"
 )
 
 # Define Facebook domains
@@ -139,6 +140,11 @@ FACEBOOK_DOMAINS=(
     "edge-mqtt.facebook.com"
     "gateway.facebook.com"
     "chat-e2ee-ig-p42.c10r.facebook.com"
+    "chat-e2ee-ig-p42.fallback.c10r.facebook.com"
+    "star-mini.fallback.c10r.facebook.com"
+    "star-mini.c10r.facebook.com"
+    "mqtt.c10r.facebook.com"
+    "dgw.c10r.facebook.com"
 )
 
 # Combine all domains into one array
@@ -147,7 +153,7 @@ BLOCKED_DOMAINS=( "${TIKTOK_DOMAINS[@]}" "${INSTAGRAM_DOMAINS[@]}" "${FACEBOOK_D
 # Get the current hour (24-hour format)
 CURRENT_HOUR=$(date +%H)
 
-# Create a temporary file to hold the blocklist
+# Create a temporary file to hold the domains list
 TEMP_FILE=$(mktemp)
 for domain in "${BLOCKED_DOMAINS[@]}"; do
     echo "$domain" >> "$TEMP_FILE"
@@ -158,10 +164,9 @@ sort -u "$TEMP_FILE" -o "$TEMP_FILE"
 # Set a batch size to avoid overloading the command line
 BATCH_SIZE=100
 
-# Helper function to process domains in batches.
-# The first argument is the subcommand (deny or allow).
+# Helper function to process domains in batches for adding
 process_in_batches() {
-  local action="$1"
+  local action="$1"  # either "deny" (block) or "allow" (unblock)
   local file="$2"
   local batch=()
   while IFS= read -r domain; do
@@ -177,15 +182,33 @@ process_in_batches() {
   fi
 }
 
+# Helper function to remove domains in batches from a list
+process_removals_in_batches() {
+  local action="$1"  # "deny" to remove from blocklist, "allow" to remove from allowlist
+  local file="$2"
+  local batch=()
+  while IFS= read -r domain; do
+      batch+=("$domain")
+      if (( ${#batch[@]} >= BATCH_SIZE )); then
+          sudo pihole "$action" -d "${batch[@]}"
+          batch=()
+      fi
+  done < "$file"
+  if (( ${#batch[@]} > 0 )); then
+      sudo pihole "$action" -d "${batch[@]}"
+  fi
+}
+
+# Main logic
 if [[ "$CURRENT_HOUR" == "00" || "$CURRENT_HOUR" == "01" ]]; then
     echo "Blocking domains..."
-    # Use the new syntax: 'deny' to block domains
+    # Now add them to the blocklist
     process_in_batches "deny" "$TEMP_FILE"
     sudo pihole -g
 elif [[ "$CURRENT_HOUR" == "06" || "$CURRENT_HOUR" == "07" ]]; then
     echo "Unblocking domains..."
-    # Use 'allow' to remove from the blocklist
-    process_in_batches "allow" "$TEMP_FILE"
+    # Remove from the blocklist before unblocking (clears any previous block entries)
+    process_removals_in_batches "deny" "$TEMP_FILE"
     sudo pihole -g
 else
     echo "No state change needed at hour $CURRENT_HOUR."
