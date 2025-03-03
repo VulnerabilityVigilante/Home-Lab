@@ -5,10 +5,10 @@ import sys
 def sanitize_filenames(directory):
     patterns = [
         re.compile(r"S(\d{2})\s*[xX×]\s*E(\d{2})", re.IGNORECASE),
+        re.compile(r"S(\d{1,2})E(\d{1,2})", re.IGNORECASE),  # Matches formats like S3E3 or S03E03
         re.compile(r"EP-(\d{2})\s+.*?S(\d{1,2})", re.IGNORECASE),
         re.compile(r"S(\d{1,2})_Ep_(\d{2})", re.IGNORECASE),  # Matches format like S3_Ep_06
         re.compile(r"S(\d{1,2})\s*Ep[-_ ](\d{2})", re.IGNORECASE),  # Matches format like S3 Ep-01
-        re.compile(r"S(\d{2})E(\d{2})", re.IGNORECASE)  # Matches format like S04E14
     ]
     
     for filename in os.listdir(directory):
