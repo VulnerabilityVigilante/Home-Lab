@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup
 import re
 
-HTML_PATH = "../mydata~XXXXXXXXXXX/html/memories_history.html"
+HTML_PATH = "../mydata~1766217532221/html/memories_history.html"
 
 MEDIA_DIR = Path(".")
 OUT_DIR = Path("videos_rendered")

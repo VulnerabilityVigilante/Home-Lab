@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import json
 
-HTML_FILE = "../mydata~XXXXXXXXXXXXX/html/memories_history.html"
+HTML_FILE = "../mydata~1766217532221/html/memories_history.html"
 VIDEO_DIR = Path(".")
 SKIP_DIRS = {"videos_rendered", "rendered", "tmp", "extracted_videos"}
 

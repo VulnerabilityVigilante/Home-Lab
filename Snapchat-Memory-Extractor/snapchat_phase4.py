@@ -4,89 +4,94 @@ import argparse
 import subprocess
 from pathlib import Path
 
-RENDERED_DIR = Path("videos_rendered")
-FIXED_DIR = Path("videos_rendered_fixed")
-FINAL_DIR = Path("final_videos")
+RENDERED_PHOTOS = Path("rendered")
+VIDEO_FIXED = Path("videos_rendered_fixed")
 
+FINAL_PHOTOS = Path("final_photos")
+FINAL_VIDEOS = Path("final_videos")
 
-def run(cmd, dry_run=False):
-    if dry_run:
+SKIP_DIRS = {
+    "tmp",
+    "rendered",
+    "videos_rendered",
+    "videos_rendered_fixed",
+    "final_photos",
+    "final_videos",
+    "extracted_videos",
+}
+
+def run(cmd, dry):
+    if dry:
         print(" ".join(cmd))
-        return
-    subprocess.run(cmd, check=True)
+    else:
+        subprocess.run(cmd, check=True)
 
+def is_root_media(path: Path):
+    return path.is_file() and path.parent.name not in SKIP_DIRS
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Phase 4: Copy metadata to fixed videos, normalize MediaCreateDate, and finalize outputs"
+        description="Phase 4: finalize all photos and videos (UI + UI-less)"
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print commands without executing")
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    if not FIXED_DIR.exists():
-        print(f"[ERROR] Missing directory: {FIXED_DIR}")
-        return
-
-    FINAL_DIR.mkdir(exist_ok=True)
-
-    fixed_videos = sorted(FIXED_DIR.glob("*.mp4"))
-    if not fixed_videos:
-        print("[INFO] No fixed videos found")
-        return
-
-    print(f"[INFO] Processing {len(fixed_videos)} videos")
+    FINAL_PHOTOS.mkdir(exist_ok=True)
+    FINAL_VIDEOS.mkdir(exist_ok=True)
 
     # ------------------------------------------------------------
-    # Step 1: Copy metadata from rendered → fixed (NO BACKUPS)
+    # PHOTOS
     # ------------------------------------------------------------
-    for fixed in fixed_videos:
-        src = RENDERED_DIR / fixed.name
-        if not src.exists():
-            print(f"[WARN] Missing source video: {src.name}")
+    print("[INFO] Finalizing photos")
+
+    # UI photos
+    if RENDERED_PHOTOS.exists():
+        for img in RENDERED_PHOTOS.glob("*.jpg"):
+            dest = FINAL_PHOTOS / img.name
+            if not dest.exists():
+                print(f"[PHOTO:UI] {img.name}")
+                if not args.dry_run:
+                    img.rename(dest)
+
+    # UI-less photos
+    for img in Path(".").glob("*.jpg"):
+        if not is_root_media(img):
             continue
-
-        print(f"[VIDEO] {fixed.name}")
-        run([
-            "exiftool",
-            "-overwrite_original",
-            "-TagsFromFile", str(src),
-            "-CreateDate",
-            "-TrackCreateDate",
-            "-GPSCoordinates",
-            str(fixed)
-        ], args.dry_run)
-
-    # ------------------------------------------------------------
-    # Step 2: Normalize MediaCreateDate (NO BACKUPS)
-    # ------------------------------------------------------------
-    print("[INFO] Normalizing MediaCreateDate")
-    run([
-        "exiftool",
-        "-overwrite_original",
-        "-if", '$MediaCreateDate eq "0000:00:00 00:00:00"',
-        "-MediaCreateDate<CreateDate",
-        str(FIXED_DIR / "*.mp4")
-    ], args.dry_run)
-
-    # ------------------------------------------------------------
-    # Step 3: Move finalized videos → final_videos/
-    # ------------------------------------------------------------
-    print("[INFO] Finalizing videos into final_videos/")
-
-    for fixed in fixed_videos:
-        dest = FINAL_DIR / fixed.name
-
+        dest = FINAL_PHOTOS / img.name
         if dest.exists():
-            # Idempotency: don't overwrite
             continue
+        print(f"[PHOTO:UILess] {img.name}")
+        if not args.dry_run:
+            img.rename(dest)
 
-        if args.dry_run:
-            print(f"mv {fixed} {dest}")
-        else:
-            fixed.rename(dest)
+    # ------------------------------------------------------------
+    # VIDEOS
+    # ------------------------------------------------------------
+    print("[INFO] Finalizing videos")
 
-    print("DONE — Phase 4 complete (final videos ready, Immich-safe)")
+    # UI videos (already reconstructed)
+    if VIDEO_FIXED.exists():
+        for vid in VIDEO_FIXED.glob("*.mp4"):
+            dest = FINAL_VIDEOS / vid.name
+            if not dest.exists():
+                print(f"[VIDEO:UI] {vid.name}")
+                if not args.dry_run:
+                    vid.rename(dest)
 
+    # UI-less videos
+    for vid in Path(".").glob("*.mp4"):
+        if not is_root_media(vid):
+            continue
+        dest = FINAL_VIDEOS / vid.name
+        if dest.exists():
+            continue
+        print(f"[VIDEO:UILess] {vid.name}")
+        if not args.dry_run:
+            vid.rename(dest)
+
+    print("\nDONE — Phase 4 complete")
+    print(f"Photos → {FINAL_PHOTOS}")
+    print(f"Videos → {FINAL_VIDEOS}")
 
 if __name__ == "__main__":
     main()

@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 # ================= CONFIG =================
 
-HTML_FILE = "../mydata~XXXXXXXXXX/html/memories_history.html"
+HTML_FILE = "../mydata~1766217532221/html/memories_history.html"
 MEDIA_DIR = Path(".")
 TMP_DIR = Path("tmp")
 OUT_DIR = Path("rendered")
@@ -158,14 +158,17 @@ def render_zip_photo(record, dry):
     tag_image(out, record, dry)
     return True
 
-def render_ui_less_photo(record, dry):
-    for f in MEDIA_DIR.iterdir():
-        if is_ui_less_photo(f):
-            out = OUT_DIR / f"{f.name}.jpg"
-            run(["cp", "--", str(f), str(out)], dry)
-            tag_image(out, record, dry)
-            return True
-    return False
+def render_ui_less_photo(record, pool, dry):
+    if not pool:
+        print(f"[WARN] No remaining UI-less photos for {record['mid']}")
+        return False
+
+    src = pool.pop(0)  # consume exactly once
+    out = OUT_DIR / f"{record['mid']}.jpg"
+
+    run(["cp", "--", str(src), str(out)], dry)
+    tag_image(out, record, dry)
+    return True
 
 # ---------- Main ----------
 
@@ -176,6 +179,13 @@ def main():
 
     records = parse_html()
 
+    # Pre-index UI-less photos (deterministic order)
+    ui_less_pool = sorted(
+        f for f in MEDIA_DIR.iterdir() if is_ui_less_photo(f)
+    )
+
+    print(f"[INFO] Found {len(ui_less_pool)} UI-less photos")
+
     for r in records:
         if r["type"] != "image":
             continue
@@ -183,7 +193,7 @@ def main():
         if render_zip_photo(r, args.dry_run):
             continue
 
-        render_ui_less_photo(r, args.dry_run)
+        render_ui_less_photo(r, ui_less_pool, args.dry_run)
 
     print("\nDONE — Phase 1 complete")
 
